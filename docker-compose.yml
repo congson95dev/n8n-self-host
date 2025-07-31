@@ -1,20 +1,18 @@
-version: '3'
+version: "3.8"
 
 services:
   n8n:
-    image: n8nio/n8n
-    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "5678:5678"
-    volumes:
-      - ./.n8n:/home/node/.n8n
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123
-      # Uncomment for production:
-      # - NODE_ENV=production
-      # - N8N_PROTOCOL=https
-      # - N8N_HOST=yourdomain.com
-      # - N8N_PORT=5678
-      # - GENERIC_TIMEZONE=America/New_York
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
