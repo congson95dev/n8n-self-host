@@ -1,6 +1,18 @@
 version: "3.8"
 
 services:
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_data:/etc/nginx/certs   # optional, if using SSL certificates
+    depends_on:
+      - n8n
+
   n8n:
     build:
       context: .
@@ -10,9 +22,17 @@ services:
     environment:
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
+      - N8N_HOST=n8n.boomzdigital.com
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.boomzdigital.com/
+      - N8N_PORT=5678
+      - N8N_PUSH_BACKEND=websocket
     volumes:
       - n8n_data:/home/node/.n8n
     restart: unless-stopped
 
 volumes:
+  nginx_data:
+    external: false
   n8n_data:
+    external: true
