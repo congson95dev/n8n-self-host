@@ -68,6 +68,8 @@ services:
       # - N8N_LOG_LEVEL=debug
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
+    volumes:
+      - /home/sonnc/Downloads/generated-video:/tmp/final-video
     depends_on:
       - postgres
       - redis
@@ -97,6 +99,8 @@ services:
       # - N8N_LOG_LEVEL=debug
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
+    volumes:
+      - /home/sonnc/Downloads/generated-video:/tmp/final-video
     depends_on:
       - postgres
       - redis
@@ -126,6 +130,8 @@ services:
       # - N8N_LOG_LEVEL=debug
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
+    volumes:
+      - /home/sonnc/Downloads/generated-video:/tmp/final-video
     depends_on:
       - postgres
       - redis
@@ -155,6 +161,8 @@ services:
       # - N8N_LOG_LEVEL=debug
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
+    volumes:
+      - /home/sonnc/Downloads/generated-video:/tmp/final-video
     depends_on:
       - postgres
       - redis
