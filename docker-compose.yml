@@ -69,7 +69,10 @@ services:
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
     volumes:
-      - /home/sonnc/Downloads/generated-video:/tmp/final-video
+      - /home/sonnc/Downloads/final-video-1:/tmp/final-video-1 # ensure to set permission to this folder, and the folder below as well
+      - /home/sonnc/Downloads/final-video-2:/tmp/final-video-2
+      - /home/sonnc/Downloads/final-video-3:/tmp/final-video-3
+      - /home/sonnc/Downloads/final-video-4:/tmp/final-video-4
     depends_on:
       - postgres
       - redis
@@ -100,7 +103,10 @@ services:
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
     volumes:
-      - /home/sonnc/Downloads/generated-video:/tmp/final-video
+      - /home/sonnc/Downloads/final-video-1:/tmp/final-video-1 # ensure to set permission to this folder, and the folder below as well
+      - /home/sonnc/Downloads/final-video-2:/tmp/final-video-2
+      - /home/sonnc/Downloads/final-video-3:/tmp/final-video-3
+      - /home/sonnc/Downloads/final-video-4:/tmp/final-video-4
     depends_on:
       - postgres
       - redis
@@ -131,7 +137,10 @@ services:
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
     volumes:
-      - /home/sonnc/Downloads/generated-video:/tmp/final-video
+      - /home/sonnc/Downloads/final-video-1:/tmp/final-video-1 # ensure to set permission to this folder, and the folder below as well
+      - /home/sonnc/Downloads/final-video-2:/tmp/final-video-2
+      - /home/sonnc/Downloads/final-video-3:/tmp/final-video-3
+      - /home/sonnc/Downloads/final-video-4:/tmp/final-video-4
     depends_on:
       - postgres
       - redis
@@ -162,7 +171,10 @@ services:
       - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true # important to make execution run through worker instead of main
     restart: unless-stopped
     volumes:
-      - /home/sonnc/Downloads/generated-video:/tmp/final-video
+      - /home/sonnc/Downloads/final-video-1:/tmp/final-video-1 # ensure to set permission to this folder, and the folder below as well
+      - /home/sonnc/Downloads/final-video-2:/tmp/final-video-2
+      - /home/sonnc/Downloads/final-video-3:/tmp/final-video-3
+      - /home/sonnc/Downloads/final-video-4:/tmp/final-video-4
     depends_on:
       - postgres
       - redis
