@@ -38,6 +38,16 @@ services:
     image: redis:7
     restart: unless-stopped
 
+  python-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    ports:
+      - "5000:5000"
+    volumes:
+    - /home/vmo/Downloads/downloaded-video:/downloaded-video
+    restart: unless-stopped
+
   n8n:
     build:
       context: .

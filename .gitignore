@@ -1,1 +1,3 @@
 .n8n/
+venv/
+__pycache__/

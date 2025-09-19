@@ -14,3 +14,10 @@ docker compose pull
 docker compose up -d
 ```
 
+Manual test:
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install opencv-python
+python3 detect-video-bars.py {file-path}/input.mp4
+```
