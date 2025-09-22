@@ -25,6 +25,10 @@ x-n8n-worker-volumes: &n8n-worker-volumes
   - /home/vmo/Downloads/final-video-2:/tmp/final-video-2
   - /home/vmo/Downloads/final-video-3:/tmp/final-video-3
   - /home/vmo/Downloads/final-video-4:/tmp/final-video-4
+  - /home/vmo/Downloads/combine-download-video-1:/tmp/combine-download-video-1
+  - /home/vmo/Downloads/combine-download-video-2:/tmp/combine-download-video-2
+  - /home/vmo/Downloads/combine-final-video-1:/tmp/combine-final-video-1
+  - /home/vmo/Downloads/combine-final-video-2:/tmp/combine-final-video-2
 
 services:
   postgres:
