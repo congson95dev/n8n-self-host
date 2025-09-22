@@ -17,6 +17,8 @@ x-n8n-env: &n8n-env
   N8N_RUNNERS_ENABLED: "true"
   N8N_RUNNERS_MODE: internal
   OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
+  # N8N_LOG_LEVEL: debug
+  N8N_LISTEN_ADDRESS: "0.0.0.0" # listen as ipv4
 
 x-n8n-worker-volumes: &n8n-worker-volumes
   - /home/vmo/Downloads/final-video-1:/tmp/final-video-1
