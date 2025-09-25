@@ -18,6 +18,7 @@ Manual test:
 ```
 python3 -m venv venv
 source venv/bin/activate
-pip install opencv-python
-python3 detect-video-bars.py {file-path}/input.mp4
+pip install opencv-python Flask
+export FLASK_APP=api.py && flask run
+http:127.0.0.1/detect/{file-path}/input.mp4
 ```
