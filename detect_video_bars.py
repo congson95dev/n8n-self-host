@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import os
-import sys
 
 class VideoBarDetector:
     @staticmethod
@@ -48,9 +47,80 @@ class VideoBarDetector:
                 y_bottom = h - 1 - y
                 break
         return {"y_top": y_top, "y_bottom": y_bottom}
+    
+    @staticmethod
+    def detect_bar_with_fallback(frames, mask_static,
+                             diff_threshold=20,
+                             brightness_threshold=30,
+                             static_ratio_threshold=0.99,
+                             min_consecutive=3,
+                             max_bar_ratio=0.5):
+        if not frames:
+            return 0, 0
+
+        h, w = frames[0].shape[:2]
+
+        # --- 1) Brightness: median of per-row means across frames (robust) ---
+        gray_frames = [cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in frames]
+        row_means = np.array([np.mean(g, axis=1) for g in gray_frames])  # shape (F, h)
+        median_row_means = np.median(row_means, axis=0)  # length h
+        brightness_mask = median_row_means < brightness_threshold  # True if likely black
+
+        # --- 2) Static: derive per-row static proportion from mask_static if provided ---
+        if mask_static is not None:
+            # mask_static: True = static pixel
+            row_static_prop = np.mean(mask_static, axis=1)  # proportion per row
+            static_mask = row_static_prop >= static_ratio_threshold
+        else:
+            static_mask = np.zeros((h,), dtype=bool)
+
+        # --- 3) Combine heuristics ---
+        combined = brightness_mask | static_mask
+
+        # Helper: find contiguous True count from top and bottom (must be >= min_consecutive)
+        def contiguous_from_top(arr):
+            cnt = 0
+            for v in arr:
+                if v:
+                    cnt += 1
+                else:
+                    if cnt > 0:
+                        break
+            return cnt
+
+        def contiguous_from_bottom(arr):
+            cnt = 0
+            for v in arr[::-1]:
+                if v:
+                    cnt += 1
+                else:
+                    if cnt > 0:
+                        break
+            return cnt
+
+        top = contiguous_from_top(combined)
+        bottom = contiguous_from_bottom(combined)
+
+        # If combined gives too small runs (<min_consecutive), try brightness-only contiguous
+        if top < min_consecutive and bottom < min_consecutive:
+            top = contiguous_from_top(brightness_mask)
+            bottom = contiguous_from_bottom(brightness_mask)
+
+        total_bar = top + bottom
+
+        # If total_bar is suspiciously large, fallback to brightness-only
+        if total_bar > int(max_bar_ratio * h):
+            top = contiguous_from_top(brightness_mask)
+            bottom = contiguous_from_bottom(brightness_mask)
+
+        # Final sanity: ensure ints and not exceed h
+        top = int(max(0, min(top, h-1)))
+        bottom = int(max(0, min(bottom, h-1 - top)))
+
+        return {"y_top": top, "y_bottom": bottom}
 
     @staticmethod
-    def main(video_path):
+    def main(video_path, version=1):
         result = {}
         if not os.path.exists(video_path):
             result["error"] = f"Video file does not exist: {video_path}"
@@ -73,7 +143,11 @@ class VideoBarDetector:
             return result
 
         mask_static = VideoBarDetector.compute_static_mask(frames, diff_threshold=20)
-        bar = VideoBarDetector.detect_bar_from_mask(mask_static)
+        if (version == 1):
+            bar = VideoBarDetector.detect_bar_from_mask(mask_static)
+        elif (version == 2):
+            bar = VideoBarDetector.detect_bar_with_fallback(frames, mask_static)
+
         suggested_crop_height = height - bar["y_top"] - bar["y_bottom"] if bar["y_top"] is not None else None
 
         result.update({
