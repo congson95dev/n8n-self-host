@@ -137,10 +137,22 @@ class VideoBarDetector:
 
         frames = VideoBarDetector.get_frames(video_path, [0, 1, 2])
         if len(frames) < 2:
-            result["error"] = "Not enough frames to detect."
-            result["width"] = width
-            result["height"] = height
-            return result
+            # Error when detect frame => Convert video to mp4/h264 then detect frame again
+            dir_orig = os.path.dirname(video_path)
+            base = os.path.basename(video_path)
+            name, ext = os.path.splitext(base)
+            converted_name = f"convert-mp4-{name}.mp4"
+            tmp = os.path.join(dir_orig, converted_name)
+            cmd = f"ffmpeg -y -i \"{video_path}\" -c:v libx264 -preset veryfast -c:a copy \"{tmp}\""
+            ret = os.system(cmd)
+            if ret != 0:
+                result["error"] = "Không thể convert video qua codec hỗ trợ. Không lấy đủ frames để detect."
+                return result
+            # Detect frame again
+            frames = VideoBarDetector.get_frames(tmp, [0, 1, 2])
+            if len(frames) < 2:
+                result["error"] = "Not enough frames to detect."
+                return result
 
         mask_static = VideoBarDetector.compute_static_mask(frames, diff_threshold=20)
         if (version == 1):
