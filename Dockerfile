@@ -26,9 +26,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 \
       python3-pip \
       gnupg \
-      nodejs \
       npm \
     && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get remove -y libnode-dev nodejs npm || true
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
 # Cài nv-codec-headers để FFmpeg biết NVENC / NVDEC
 RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git /tmp/nv-codec-headers \
