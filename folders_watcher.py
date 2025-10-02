@@ -46,16 +46,23 @@ def wait_for_file_complete(path: str, timeout: float = TIMEOUT) -> bool:
         time.sleep(CHECK_INTERVAL)
 
 def send_webhook(path: str):
+    folder_path = os.path.dirname(path)           # Lấy thư mục chứa file
+    file_name = os.path.basename(path)            # Tên file
+    _, file_ext = os.path.splitext(file_name)    # Lấy extension (kèm dấu .)
+
     data = {
-        "file_path": path,
-        "file_name": os.path.basename(path),
+        "file_path": path,       # full path
+        "file_name": file_name,  # chỉ tên file
+        "folder_path": folder_path, # thư mục chứa file
+        "extension": file_ext    # phần mở rộng file
     }
     try:
         resp = requests.post(WEBHOOK_URL, json=data, timeout=10)
         resp.raise_for_status()
-        print(f"[+] Webhook sent: {path} => {resp.status_code}")
+        print(f"[+] Webhook sent: {path} => {resp.status_code}", flush=True)
     except Exception as e:
-        print(f"[!] Error sending webhook for {path}: {e}")
+        print(f"[!] Error sending webhook for {path}: {e}", flush=True)
+
 
 def handle_added(path: str):
     if wait_for_file_complete(path):

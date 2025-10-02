@@ -27,8 +27,10 @@ x-n8n-common-volumes: &n8n-common-volumes
   - /home/vmo/Downloads/final-video-2:/tmp/final-video-2
   - /home/vmo/Downloads/final-video-3:/tmp/final-video-3
   - /home/vmo/Downloads/final-video-4:/tmp/final-video-4
-  - /home/vmo/Downloads/combine-download-video-1:/tmp/combine-download-video-1
-  - /home/vmo/Downloads/combine-download-video-2:/tmp/combine-download-video-2
+  - /home/vmo/Downloads/combine-video-1:/tmp/combine-video-1
+  - /home/vmo/Downloads/combine-video-2:/tmp/combine-video-2
+  - /home/vmo/Downloads/video-3:/tmp/video-3
+  - /home/vmo/Downloads/video-4:/tmp/video-4
   - /home/vmo/Downloads/combine-final-video-1:/tmp/combine-final-video-1
   - /home/vmo/Downloads/combine-final-video-2:/tmp/combine-final-video-2
 
@@ -65,7 +67,7 @@ services:
       - n8n
     environment:
       WEBHOOK_URL: "http://n8n-self-host-n8n-1:5678/webhook/folder-watcher"
-      FOLDERS_TO_WATCH: "/tmp/combine-download-video-1/,/tmp/combine-download-video-2/"  
+      FOLDERS_TO_WATCH: "/tmp/combine-video-1/,/tmp/combine-video-2/,/tmp/video-3/,/tmp/video-4/"
 
   n8n:
     build:
