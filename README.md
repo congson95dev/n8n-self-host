@@ -19,6 +19,15 @@ Manual test:
 python3 -m venv venv
 source venv/bin/activate
 pip install opencv-python Flask
-export FLASK_APP=api.py && flask run
+export FLASK_APP=api.py && flask run watchfiles requests
+```
+
+Detect video bars:
+```
 http:127.0.0.1/detect/{file-path}/input.mp4
+```
+
+Folder watcher:
+```
+python3 folders_watcher.py
 ```

@@ -55,6 +55,18 @@ services:
     volumes: *n8n-common-volumes
     restart: unless-stopped
 
+  folders-watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.watcher
+    volumes: *n8n-common-volumes
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    environment:
+      WEBHOOK_URL: "http://n8n-self-host-n8n-1:5678/webhook/folder-watcher"
+      FOLDERS_TO_WATCH: "/tmp/combine-download-video-1/,/tmp/combine-download-video-2/"  
+
   n8n:
     build:
       context: .

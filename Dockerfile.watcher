@@ -1,0 +1,19 @@
+# Dockerfile.watcher
+
+FROM python:3.12-slim
+
+# Đặt thư mục làm việc
+WORKDIR /app
+
+# Cài dependencies hệ thống, ví dụ ffmpeg nếu watcher cũng cần xử lý video
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy mã watcher vào container
+COPY folders_watcher.py folders_watcher.py
+
+# Cài thư viện Python cần thiết
+RUN pip install --no-cache-dir watchfiles requests
+
+# Lệnh khởi chạy watcher khi container chạy
+CMD ["python3", "-u", "folders_watcher.py"]
