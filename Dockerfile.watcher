@@ -7,6 +7,7 @@ WORKDIR /app
 
 # Cài dependencies hệ thống, ví dụ ffmpeg nếu watcher cũng cần xử lý video
 RUN apt-get update && apt-get install -y \
+    && apt-get install -y ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy mã watcher vào container

@@ -2,6 +2,7 @@ import os
 import time
 import threading
 import requests
+import subprocess
 from watchfiles import watch, Change
 
 # Đọc biến môi trường
@@ -45,16 +46,43 @@ def wait_for_file_complete(path: str, timeout: float = TIMEOUT) -> bool:
             return False
         time.sleep(CHECK_INTERVAL)
 
+def get_video_duration(path: str) -> float | None:
+    """Dùng ffprobe để lấy duration video (giây)."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                path
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        duration_str = result.stdout.strip()
+        return float(duration_str) if duration_str else None
+    except Exception as e:
+        print(f"[!] Error getting duration for {path}: {e}", flush=True)
+        return None
+
 def send_webhook(path: str):
     folder_path = os.path.dirname(path)           # Lấy thư mục chứa file
     file_name = os.path.basename(path)            # Tên file
-    _, file_ext = os.path.splitext(file_name)    # Lấy extension (kèm dấu .)
+    _, file_ext = os.path.splitext(file_name)     # Lấy extension (kèm dấu .)
+
+    duration = None
+    if file_ext.lower() in [".mp4", ".mov", ".mkv", ".avi", ".webm", ".flv"]:
+        duration = get_video_duration(path)
 
     data = {
-        "file_path": path,       # full path
-        "file_name": file_name,  # chỉ tên file
+        "file_path": path,        # full path
+        "file_name": file_name,   # chỉ tên file
         "folder_path": folder_path, # thư mục chứa file
-        "extension": file_ext    # phần mở rộng file
+        "extension": file_ext,    # phần mở rộng file
+        "duration": duration      # thời lượng video (giây, float)
     }
     try:
         resp = requests.post(WEBHOOK_URL, json=data, timeout=10)
