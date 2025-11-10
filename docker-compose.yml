@@ -23,6 +23,7 @@ x-n8n-env: &n8n-env
 x-n8n-common-volumes: &n8n-common-volumes
   - /home/vmo/Downloads/downloads:/tmp/downloads
   - /home/vmo/Downloads/combine-video:/tmp/combine-video
+  - /home/vmo/Downloads/combine-render-video:/tmp/combine-render-video
   - /home/vmo/Downloads/final-video-1:/tmp/final-video-1
   - /home/vmo/Downloads/final-video-2:/tmp/final-video-2
   - /home/vmo/Downloads/final-video-3:/tmp/final-video-3

@@ -138,7 +138,7 @@ class VideoBarDetector:
         frames = VideoBarDetector.get_frames(video_path, [0, 1, 2])
         if len(frames) < 2:
             # Error when detect frame => Convert video to mp4/h264 then detect frame again
-            dir_orig = os.path.dirname(video_path)
+            dir_orig = "/tmp/download/"
             base = os.path.basename(video_path)
             name, ext = os.path.splitext(base)
             converted_name = f"convert-mp4-{name}.mp4"
