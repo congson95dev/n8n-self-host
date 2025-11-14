@@ -124,14 +124,18 @@ class VideoBarDetector:
     
     @staticmethod
     def _ensure_converted_h264_if_needed(path, tmp_dir=None, convert_on_fail=True):
+        """Try open with OpenCV; if fail to read first frame and convert_on_fail True -> convert to H264 temp file."""
         cap = cv2.VideoCapture(path)
         if cap.isOpened():
             ret, _ = cap.read()
-            cap.release()
             if ret:
-                return path
+                cap.release()
+                return path  # OK to use original
+            cap.release()
+
         if not convert_on_fail:
             return None
+
         if tmp_dir is None:
             tmp_dir = tempfile.gettempdir()
         base = os.path.basename(path)
@@ -148,211 +152,115 @@ class VideoBarDetector:
             return None
 
     @staticmethod
-    def detect_dynamic_segments(video_path,
-                                   sample_rate_sec=0.25,
-                                   sliding_win_seconds=1.0,
-                                   brightness_thresh=None,
-                                   static_std_thresh=3.0,
-                                   diff_px_tolerance=6,
-                                   min_segment_duration=0.3,
-                                   merge_gap_seconds=0.25,
-                                   min_detect_rows=2,
-                                   convert_on_fail=True,
-                                   debug=False):
-        if not os.path.exists(video_path):
-            return {"error": "file not found"}
+    def detect_dynamic_segments(video_path):
+        import subprocess
+        import numpy as np
+        import cv2
+        import json
 
-        usable_path = VideoBarDetector._ensure_converted_h264_if_needed(video_path, convert_on_fail=convert_on_fail)
-        if usable_path is None:
-            return {"error": "cannot open video and conversion failed"}
+        # Step 1: get width/height/duration via ffprobe
+        probe_cmd = [
+            "ffprobe", "-v", "quiet",
+            "-print_format", "json",
+            "-show_streams", "-select_streams", "v:0",
+            video_path
+        ]
 
-        cap = cv2.VideoCapture(usable_path)
-        if not cap.isOpened():
-            return {"error": "cannot open video after conversion"}
+        info = json.loads(subprocess.check_output(probe_cmd))
+        stream = info["streams"][0]
 
-        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if cap.get(cv2.CAP_PROP_FRAME_COUNT) else None
+        width = stream["width"]
+        height = stream["height"]
+        fps = eval(stream["r_frame_rate"])
+        duration = float(stream["duration"])
 
-        # compute numeric duration safely
-        if frame_count and fps and fps > 0:
-            total_duration = frame_count / fps
-        else:
-            # fallback: try reading video length via CAP_PROP_POS_MSEC by seeking to end
-            total_duration = None
-            try:
-                cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 1.0)
-                # read current position in ms
-                ms = cap.get(cv2.CAP_PROP_POS_MSEC)
-                if ms and ms > 0:
-                    total_duration = ms / 1000.0
-            except Exception:
-                total_duration = None
-            # reset position
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        # Step 2: read raw frames using ffmpeg
+        cmd = [
+            "ffmpeg", "-v", "quiet",
+            "-i", video_path,
+            "-vf", f"scale={width}:{height}",
+            "-f", "image2pipe",
+            "-pix_fmt", "rgb24",
+            "-vcodec", "rawvideo",
+            "-"
+        ]
 
-        win_len = max(1, int(round(sliding_win_seconds / sample_rate_sec)))
-        row_means_win = deque(maxlen=win_len)
-        row_stds_win = deque(maxlen=win_len)
+        pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**8)
 
-        t = 0.0
-        sampled = []
-        height = None
-        width = None
+        segments = []
+        last = None
 
-        # sample loop
+        BRIGHTNESS_THRESHOLD = 18
+        STD_THRESHOLD = 2
+
+        frame_size = width * height * 3
+        frame_idx = 0
+
         while True:
-            cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000.0)
-            ret, frame = cap.read()
-            if not ret:
+            raw = pipe.stdout.read(frame_size)
+            if len(raw) < frame_size:
                 break
 
-            if height is None:
-                height, width = frame.shape[:2]
+            frame = np.frombuffer(raw, dtype=np.uint8).reshape((height, width, 3))
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray_blur = cv2.GaussianBlur(gray, (5,5), 0)
+            row_means = gray.mean(axis=1)
+            row_stds = gray.std(axis=1)
 
-            row_means = np.mean(gray_blur, axis=1)
-            row_stds = np.std(gray_blur, axis=1)
+            dark_rows = row_means < BRIGHTNESS_THRESHOLD
+            static_rows = row_stds < STD_THRESHOLD
 
-            row_means_win.append(row_means)
-            row_stds_win.append(row_stds)
-
-            median_row_means = np.median(np.stack(list(row_means_win)), axis=0)
-            median_row_stds = np.median(np.stack(list(row_stds_win)), axis=0)
-
-            if brightness_thresh is None:
-                global_median = float(np.median(median_row_means))
-                brightness_thresh_local = min(80, max(20, int(global_median * 0.9)))
-            else:
-                brightness_thresh_local = brightness_thresh
-                global_median = float(np.median(median_row_means))
-
-            dark_rows = median_row_means < brightness_thresh_local
-            static_rows = median_row_stds < static_std_thresh
             row_mask = dark_rows | static_rows
+            mask = (row_mask.astype(np.uint8) * 255).reshape(-1,1)
 
-            mask_u8 = row_mask.astype(np.uint8)
-            kernel = max(1, int(round(0.02 * height)))
-            conv = np.convolve(mask_u8, np.ones(kernel, dtype=int), mode='same')
-            mask_smooth = conv > 0
+            kernel = np.ones((7,1), np.uint8)
+            clean = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel).flatten() > 0
 
-            def contiguous_from_top_bool(arr):
-                cnt = 0
-                for v in arr:
-                    if v:
-                        cnt += 1
-                    elif cnt>0:
-                        break
-                return cnt
-            def contiguous_from_bottom_bool(arr):
-                cnt = 0
-                for v in arr[::-1]:
-                    if v:
-                        cnt += 1
-                    elif cnt>0:
-                        break
-                return cnt
-
-            y_top = contiguous_from_top_bool(mask_smooth)
-            y_bottom = contiguous_from_bottom_bool(mask_smooth)
-
-            if y_top < min_detect_rows:
+            # top bar
+            if clean[0]:
+                y_top = int(np.argmax(clean == False))
+            else:
                 y_top = 0
-            if y_bottom < min_detect_rows:
+
+            # bottom bar
+            if clean[-1]:
+                y_bottom = int(np.argmax(clean[::-1] == False))
+            else:
                 y_bottom = 0
 
-            def quantize(v):
-                return int(max(0, (v//2)*2))
-            y_top_q = quantize(y_top)
-            y_bottom_q = quantize(y_bottom)
+            timestamp = frame_idx / fps
+            current = {
+                "start": timestamp,
+                "end": timestamp,
+                "y_top": int(y_top),
+                "y_bottom": int(y_bottom)
+            }
 
-            sampled.append({
-                "time": t,
-                "y_top": y_top_q,
-                "y_bottom": y_bottom_q,
-                "brightness_thresh": float(brightness_thresh_local),
-                "global_median": float(global_median)
-            })
-
-            t += sample_rate_sec
-            if total_duration and t > total_duration + 0.0001:
-                break
-            if t > 100000:
-                break
-
-        cap.release()
-
-        if len(sampled) == 0:
-            return {"segments": [], "error": "no samples (maybe cannot read frames)"}
-
-        # Group consecutive samples
-        segments = []
-        cur = None
-        for s in sampled:
-            bar = (s["y_top"], s["y_bottom"])
-            if cur is None:
-                cur = {"start": s["time"], "end": s["time"] + sample_rate_sec, "y_top": bar[0], "y_bottom": bar[1]}
+            if last is None:
+                last = current
             else:
-                if abs(bar[0] - cur["y_top"]) <= diff_px_tolerance and abs(bar[1] - cur["y_bottom"]) <= diff_px_tolerance:
-                    cur["end"] = s["time"] + sample_rate_sec
-                    cur["y_top"] = int(round((cur["y_top"] + bar[0]) / 2.0))
-                    cur["y_bottom"] = int(round((cur["y_bottom"] + bar[1]) / 2.0))
+                if (
+                    abs(current["y_top"] - last["y_top"]) <= 2 and
+                    abs(current["y_bottom"] - last["y_bottom"]) <= 2
+                ):
+                    last["end"] = current["end"]
                 else:
-                    segments.append(cur)
-                    cur = {"start": s["time"], "end": s["time"] + sample_rate_sec, "y_top": bar[0], "y_bottom": bar[1]}
-        if cur:
-            segments.append(cur)
+                    last["end"] = min(last["end"], duration)
+                    segments.append(last)
+                    last = current
 
-        # helper renamed to avoid shadowing numeric total_duration
-        def seg_duration(seg): 
-            return seg["end"] - seg["start"]
+            frame_idx += 1
 
-        merged = []
-        i = 0
-        while i < len(segments):
-            seg = segments[i]
-            if seg_duration(seg) < min_segment_duration:
-                if merged:
-                    merged[-1]["end"] = seg["end"]
-                    merged[-1]["y_top"] = int(round((merged[-1]["y_top"] + seg["y_top"]) / 2.0))
-                    merged[-1]["y_bottom"] = int(round((merged[-1]["y_bottom"] + seg["y_bottom"]) / 2.0))
-                elif i + 1 < len(segments):
-                    segments[i+1]["start"] = seg["start"]
-                    segments[i+1]["y_top"] = int(round((segments[i+1]["y_top"] + seg["y_top"]) / 2.0))
-                    segments[i+1]["y_bottom"] = int(round((segments[i+1]["y_bottom"] + seg["y_bottom"]) / 2.0))
-                else:
-                    merged.append(seg)
-            else:
-                merged.append(seg)
-            i += 1
+        pipe.stdout.close()
 
-        out = []
-        for seg in merged:
-            if not out:
-                out.append(seg)
-            else:
-                prev = out[-1]
-                gap = seg["start"] - prev["end"]
-                if gap <= merge_gap_seconds and abs(seg["y_top"] - prev["y_top"]) <= diff_px_tolerance and abs(seg["y_bottom"] - prev["y_bottom"]) <= diff_px_tolerance:
-                    prev["end"] = seg["end"]
-                    prev["y_top"] = int(round((prev["y_top"] + seg["y_top"]) / 2.0))
-                    prev["y_bottom"] = int(round((prev["y_bottom"] + seg["y_bottom"]) / 2.0))
-                else:
-                    out.append(seg)
+        if last:
+            last["end"] = min(last["end"], duration)
+            segments.append(last)
 
-        # clamp to video duration if available and ensure numeric
-        for o in out:
-            o["start"] = float(max(0.0, float(o["start"])))
-            if total_duration:
-                o["end"] = float(min(total_duration, float(o["end"])))
-            else:
-                o["end"] = float(o["end"])
+        return {"segments": segments}
 
-        res = {"segments": out}
-        if debug:
-            res["debug"] = {"sample_rate_sec": sample_rate_sec, "samples": sampled[:200], "height": height, "width": width, "total_duration": total_duration}
-        return res
+
+
 
     @staticmethod
     def main(video_path, version=1):
