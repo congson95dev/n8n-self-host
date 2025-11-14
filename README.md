@@ -48,3 +48,8 @@ Folder watcher:
 ```
 python3 folders_watcher.py
 ```
+
+Command to seperate each video parts after run API V3:
+```
+ffmpeg -ss {start} -to {end} -i /tmp/downloads/input_dynamic_bar.mp4 -c:v libx264 -c:a aac -strict experimental -b:a 192k /tmp/downloads/input_dynamic_bar_{start}_{end} -y
+```
