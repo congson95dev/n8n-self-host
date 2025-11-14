@@ -259,9 +259,6 @@ class VideoBarDetector:
 
         return {"segments": segments}
 
-
-
-
     @staticmethod
     def main(video_path, version=1):
         result = {}
