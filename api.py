@@ -33,5 +33,15 @@ def detectv3():
     print(result)
     return jsonify(result)
 
+@app.route("/detect-v4", methods=["GET", "POST"])
+def detectv4():
+    video_path = request.args.get("video_path")
+    if not video_path:
+        return jsonify({"error": "video_path is required"}), 400
+    
+    result = VideoBarDetector.main(video_path, version=4)
+    print(result)
+    return jsonify(result)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

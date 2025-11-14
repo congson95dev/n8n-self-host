@@ -259,6 +259,81 @@ class VideoBarDetector:
 
         return {"segments": segments}
 
+    def detect_bar_from_mask_video_less_than_1s(video_path,
+                                                motion_thresh=2.5,
+                                                stable_std_thresh=5.0):
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return {"error": "cannot open video"}
+
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_count < 2:
+            return {"error": "not enough frames"}
+
+        # Lấy 3 frames: đầu – giữa – cuối
+        idxs = sorted(set([0, frame_count//2, frame_count-1]))
+        frames = []
+        for idx in idxs:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, fr = cap.read()
+            if not ret:
+                continue
+            gray = cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY)
+            frames.append(gray)
+        cap.release()
+
+        if len(frames) < 2:
+            return {"error": "not enough frames"}
+
+        # unify size
+        h = min(f.shape[0] for f in frames)
+        w = min(f.shape[1] for f in frames)
+        frames = [f[:h, :w] for f in frames]
+
+        # 1. motion per row
+        motions = []
+        for i in range(len(frames)-1):
+            diff = cv2.absdiff(frames[i], frames[i+1]).astype(np.float32)
+            motions.append(np.mean(diff, axis=1))
+        motions = np.max(np.stack(motions), axis=0)
+
+        # 2. brightness stability per row
+        row_means = np.stack([np.mean(f, axis=1) for f in frames])
+        row_std = np.std(row_means, axis=0)
+
+        # 3. static mask: motion thấp + brightness ổn định
+        static_mask = (motions < motion_thresh) & (row_std < stable_std_thresh)
+
+        # Morphology để làm mịn mask
+        static_u8 = (static_mask.astype(np.uint8) * 255)
+        kernel = np.ones((9,1), np.uint8)
+        clean = cv2.morphologyEx(static_u8.reshape(-1,1), cv2.MORPH_CLOSE, kernel)
+        clean = clean.flatten() > 0
+
+        # detect y_top
+        y_top = 0
+        for i in range(h):
+            if clean[i]:
+                y_top += 1
+            else:
+                break
+
+        # detect y_bottom
+        y_bottom = 0
+        for i in range(h-1, -1, -1):
+            if clean[i]:
+                y_bottom += 1
+            else:
+                break
+
+        return {
+            "y_top": int(y_top),
+            "y_bottom": int(y_bottom),
+            "height": h,
+            "motion_thresh": motion_thresh,
+            "stable_std_thresh": stable_std_thresh
+        }
+
     @staticmethod
     def main(video_path, version=1):
         result = {}
@@ -278,6 +353,11 @@ class VideoBarDetector:
         if version == 3:
             segments = VideoBarDetector.detect_dynamic_segments(video_path)
             return segments
+        elif (version == 4):
+            bar = VideoBarDetector.detect_bar_from_mask_video_less_than_1s(video_path)
+            suggested_crop_height = height - bar["y_top"] - bar["y_bottom"] if bar["y_top"] is not None else None
+            bar.update({"suggested_crop_height": suggested_crop_height})
+            return bar
 
         frames = VideoBarDetector.get_frames(video_path, [0, 1, 2])
         if len(frames) < 2:
