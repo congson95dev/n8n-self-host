@@ -2,3 +2,5 @@
 .vscode/
 __pycache__/
 venv/
+.env
+telegram-bot-api/data/
