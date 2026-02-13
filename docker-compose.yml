@@ -28,6 +28,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: n8n
+    user: "0:0"
     restart: always
     ports:
       - "5678:5678"
@@ -57,6 +58,7 @@ services:
         condition: service_healthy
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./telegram-bot-api/data:/data:rw
     networks:
       - n8n-network
 
