@@ -31,8 +31,10 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
 
 # Install openai-whisper and its dependencies
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    pip3 install torch torchvision torchaudio && \
-    pip3 install openai-whisper
+    pip3 install --no-cache-dir \
+      torch \
+      --index-url https://download.pytorch.org/whl/cpu && \
+    pip3 install --no-cache-dir openai-whisper
 
 RUN useradd -m -u 1000 node
 USER node
