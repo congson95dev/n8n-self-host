@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "44953ba7-fe40-410d-9451-034a6657c726",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e7af5102-b608-4d23-b12b-89caa9fca93e",
+      "name": "Wait",
+      "webhookId": "a87707e6-4902-447d-8b23-0ba5fe110163"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "97b89950-e201-4a62-a16c-31b97dc29fb9",
+              "name": "status",
+              "value": "Done",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1ce5b085-3ff2-4531-bf0c-b844d1e8867b",
+      "name": "Edit Fields"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "be74c41cbfbff63aa71a769a5c5130a6f8d177cd514aafd727221819ff15ab68"
+  }
+}

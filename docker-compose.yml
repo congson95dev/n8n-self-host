@@ -1,113 +1,123 @@
-version: "3.8"
+---
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "${DOCKER_LOG_MAX_SIZE}"
+    max-file: "${DOCKER_LOG_MAX_FILE}"
 
-x-n8n-env: &n8n-env
-  GENERIC_TIMEZONE: Asia/Ho_Chi_Minh
-  TZ: Asia/Ho_Chi_Minh
-  EXECUTIONS_MODE: queue
-  N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+x-n8n-common-env: &n8n-common-env
+  N8N_RUNNERS_ENABLED: "true"
+  GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
   DB_TYPE: postgresdb
   DB_POSTGRESDB_HOST: postgres
   DB_POSTGRESDB_PORT: 5432
-  DB_POSTGRESDB_DATABASE: n8n
+  DB_POSTGRESDB_DATABASE: n8ndb
   DB_POSTGRESDB_USER: n8n
-  DB_POSTGRESDB_PASSWORD: n8n
+  DB_POSTGRESDB_PASSWORD: NJNf^DDeUa2jyt4
+  N8N_DEFAULT_BINARY_DATA_MODE: filesystem
+  N8N_BINARY_DATA_STORAGE_PATH: /files
+  EXECUTIONS_MODE: queue
   QUEUE_BULL_REDIS_HOST: redis
   QUEUE_BULL_REDIS_PORT: 6379
-  N8N_ENCRYPTION_KEY: P6QhfMJONZnzDLKv+Pvlf+35ZXESD5SW
-  N8N_RUNNERS_ENABLED: "true"
-  N8N_RUNNERS_MODE: internal
+  N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
   OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
 
-x-n8n-worker-volumes: &n8n-worker-volumes
-  - /home/vmo/Downloads/final-video-1:/tmp/final-video-1
-  - /home/vmo/Downloads/final-video-2:/tmp/final-video-2
-  - /home/vmo/Downloads/final-video-3:/tmp/final-video-3
-  - /home/vmo/Downloads/final-video-4:/tmp/final-video-4
+x-n8n-common: &n8n-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: always
+  pull_policy: if_not_present
+  depends_on:
+    - postgres
+    - redis
+  logging: *default-logging
+  volumes:
+    - n8n-data:/home/node/.n8n
+    - ${DEPLOY_FOLDER}/local_files:/files
+    - ./binary_data:/files
+  networks:
+    - n8n_network
+  environment:
+    <<: *n8n-common-env
 
 services:
   postgres:
-    image: postgres:13
+    image: postgres:14-alpine
+    restart: always
+    pull_policy: if_not_present
+    container_name: postgres_n8n_docker
     environment:
       POSTGRES_USER: n8n
-      POSTGRES_PASSWORD: n8n
-      POSTGRES_DB: n8n
+      POSTGRES_PASSWORD: NJNf^DDeUa2jyt4
+      POSTGRES_DB: n8ndb
+    logging: *default-logging
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - n8n_network
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    restart: always
+    pull_policy: if_not_present
+    logging: *default-logging
+    volumes:
+      - redis-data:/data
+    networks:
+      - n8n_network
+
+  caddy:
+    image: caddy:latest
     restart: unless-stopped
+    pull_policy: always
+    container_name: caddy_n8n_docker
+    ports:
+      - "80:80"
+      - "443:443"
+    logging: *default-logging
+    volumes:
+      - ${DEPLOY_FOLDER}/caddy_data:/data
+      - ${DEPLOY_FOLDER}/caddy_config:/config
+      - ${DEPLOY_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+      - ${DEPLOY_FOLDER}/caddy_config/certs:/certs
+    networks:
+      - n8n_network
 
   n8n:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "5678:5678"
+    <<: *n8n-common
+    container_name: n8n_docker
     environment:
-      <<: *n8n-env
-      NODE_ENV: production
-      N8N_CONCURRENCY_PRODUCTION_LIMIT: 2
-    volumes:
-      - n8n_data:/home/node/.n8n
-    restart: unless-stopped
+      <<: *n8n-common-env
+      N8N_BASIC_AUTH_ACTIVE: "false"
+      N8N_HOST: ${DOMAIN_NAME}
+      WEBHOOK_URL: https://${DOMAIN_NAME}
+      N8N_PROTOCOL: https
+      N8N_PROXY_HOPS: 1
+      N8N_SECURE_COOKIE: "false"
+      
 
   n8n-worker-1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: worker
-    environment:
-      <<: *n8n-env
-      N8N_CONCURRENCY_PRODUCTION_LIMIT: 5
-    restart: unless-stopped
-    volumes: *n8n-worker-volumes
-    depends_on:
-      - postgres
-      - redis
+    <<: *n8n-common
+    command: worker --concurrency=1
 
   n8n-worker-2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: worker
-    environment:
-      <<: *n8n-env
-      N8N_CONCURRENCY_PRODUCTION_LIMIT: 5
-    restart: unless-stopped
-    volumes: *n8n-worker-volumes
-    depends_on:
-      - postgres
-      - redis
+    <<: *n8n-common
+    command: worker --concurrency=1
 
   n8n-worker-3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: worker
-    environment:
-      <<: *n8n-env
-      N8N_CONCURRENCY_PRODUCTION_LIMIT: 5
-    restart: unless-stopped
-    volumes: *n8n-worker-volumes
-    depends_on:
-      - postgres
-      - redis
+    <<: *n8n-common
+    command: worker --concurrency=1
 
   n8n-worker-4:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: worker
-    environment:
-      <<: *n8n-env
-      N8N_CONCURRENCY_PRODUCTION_LIMIT: 5
-    restart: unless-stopped
-    volumes: *n8n-worker-volumes
-    depends_on:
-      - postgres
-      - redis
+    <<: *n8n-common
+    command: worker --concurrency=1
 
 volumes:
-  n8n_data:
-  pgdata:
+  n8n-data:
+  postgres-data:
+  redis-data:
+
+networks:
+  n8n_network:
+    driver: bridge

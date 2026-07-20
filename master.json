@@ -1,0 +1,73 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "54ade203-c2b6-4a28-9d2b-5a634efd61d0",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const total = 20;\n\n// Replace with your own input source if needed\nconst videoUrls = Array.from({ length: total }, (_, i) => `https://example.com/video-${i + 1}.mp4`);\n\nreturn videoUrls.map((videoUrl, i) => ({\n  json: {\n    jobId: i + 1,\n    videoUrl,\n    keyIndex: i,\n    requestedAt: new Date().toISOString(),\n  },\n}));"
+      },
+      "id": "788d1178-4d3e-4136-a98d-428f06e66801",
+      "name": "Build 20 Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "0owfkFzpPkQx9Iln",
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "b13e3f36-282c-436a-90d8-cae4598502b7",
+      "name": "Fanout to Subworkflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        544,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build 20 Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 20 Jobs": {
+      "main": [
+        [
+          {
+            "node": "Fanout to Subworkflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "be74c41cbfbff63aa71a769a5c5130a6f8d177cd514aafd727221819ff15ab68"
+  }
+}
